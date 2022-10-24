@@ -1,0 +1,5 @@
+/target
+*.fa
+*.fasta
+*.fq
+*.fastq
