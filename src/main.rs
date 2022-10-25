@@ -1,7 +1,10 @@
 use clap::{Parser, Subcommand, ValueEnum};
+use std::error::Error;
 use std::path::PathBuf;
 
-pub mod commands;
+mod commands;
+mod errors;
+
 #[derive(Parser, Debug)]
 /// Seqtools is a simple utility to work with FASTX files from the command line.
 /// Seamlessly handles compressed files (.gz, .xz or bz2 formats).
@@ -58,11 +61,11 @@ pub enum Format {
     Q,
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
 
     if cli.command.is_none() {
-        panic!("You must specify a command.");
+        return Err(errors::MainError::new("You must specify a command.").into());
     }
 
     let line_ending = match std::env::consts::OS {
@@ -70,7 +73,7 @@ fn main() {
             needletail::parser::LineEnding::Unix
         }
         "windows" => needletail::parser::LineEnding::Windows,
-        _ => panic!("This platform is not supported."),
+        _ => return Err(errors::MainError::new("Windows is not supported..").into()),
     };
 
     match cli.command {
@@ -86,5 +89,7 @@ fn main() {
             format,
         }) => commands::generate_random(num, len, std, format, line_ending),
         None => unreachable!(),
-    };
+    }?;
+
+    Ok(())
 }
