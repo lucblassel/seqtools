@@ -22,15 +22,27 @@ enum Commands {
         /// Report statistics about lengths instead of individual lengths
         #[arg(short, long)]
         summary: bool,
+        /// Draw a histogram of lengths
+        #[arg(short = 't', long)]
+        histogram: bool,
     },
-    /// Generate random sequences
-    Generate {
+    /// Get statistics about frequencies in the file
+    Freqs {
+        /// Get frequencies per sequence instead of globally
+        #[arg(short = 's', long = "per-sequence")]
+        per_sequence: bool,
+    },
+    /// Generate random sequences with normally distributed lengths
+    Random {
         /// number of sequences to generate
         #[arg(short, long, default_value_t = 10)]
         num: i32,
-        /// Length of sequences to generate
-        #[arg(short, long, default_value_t = 100)]
-        len: u32,
+        /// Average length of sequences to generate
+        #[arg(short, long, default_value_t = 100.)]
+        len: f64,
+        /// Standard deviation of read length
+        #[arg(short, long, default_value_t = 0.)]
+        std: f64,
         /// Format of generated sequences (FAST(a) or FAST(q))
         #[arg(short, long, value_enum, default_value_t=Format::A)]
         format: Format,
@@ -62,19 +74,30 @@ fn main() {
 
     match cli.command {
         Some(Commands::Count) => commands::count(cli.input),
-        Some(Commands::Length { summary }) => commands::length(cli.input, summary),
-        Some(Commands::Generate { num, len, format }) => {
-            commands::generate(num, len, format, line_ending)
+        Some(Commands::Length { summary, histogram }) => {
+            commands::length(cli.input, summary, histogram)
         }
+        Some(Commands::Freqs { per_sequence }) => commands::frequencies(cli.input, per_sequence),
+        Some(Commands::Random {
+            num,
+            len,
+            std,
+            format,
+        }) => commands::generate_random(num, len, std, format, line_ending),
         None => unreachable!(),
     };
 }
 
 pub mod commands {
+    use std::collections::HashMap;
+    use std::path::PathBuf;
+
+    use histogram::Histogram;
     use needletail::parser::{self, LineEnding};
     use needletail::FastxReader;
     use rand::Rng;
-    use std::path::PathBuf;
+    use rand_distr::{Distribution, Normal};
+    use textplots::{Chart, Plot, Shape};
 
     const CHARSET: &[u8] = b"ACGT";
 
@@ -86,6 +109,23 @@ pub mod commands {
             None => needletail::parse_fastx_stdin(),
         }
         .unwrap()
+    }
+
+    fn draw_hist(hist: &mut Histogram) {
+        let min_x = hist.minimum().unwrap();
+        let max_x = hist.maximum().unwrap();
+
+        let points: Vec<(f32, f32)> = hist
+            .into_iter()
+            .map(|bucket| (bucket.value() as f32, bucket.count() as f32))
+            .filter(|(_, c)| *c > 0.)
+            .collect();
+
+        let chart = Chart::new(200, 50, min_x as f32 - 1., max_x as f32 + 1.)
+            .lineplot(&Shape::Bars(&points))
+            .to_string();
+
+        eprintln!("{chart}");
     }
 
     pub fn count(input: Option<PathBuf>) {
@@ -100,35 +140,39 @@ pub mod commands {
         println!("{count} sequences");
     }
 
-    pub fn length(input: Option<PathBuf>, stats: bool) {
+    pub fn length(input: Option<PathBuf>, stats: bool, histogram: bool) {
         let mut reader = init_reader(input);
 
         if stats {
-            let l: usize = match reader.next().expect("Invalid record") {
-                Ok(record) => record.seq().len(),
-                Err(e) => panic!("Error reading input: {e}"),
-            };
-
-            let mut max: usize = l;
-            let mut min: usize = l;
-            let mut total: usize = 0;
-            let mut count: usize = 0;
+            let mut hist = Histogram::new();
 
             while let Some(r) = reader.next() {
                 let record = r.expect("Invalid record");
                 let l = record.seq().len();
-                total += l;
-                count += 1;
-
-                if l > max {
-                    max = l;
-                } else if l < min {
-                    min = l;
-                }
+                hist.increment(l as u64)
+                    .expect("Error incrementing histogram");
             }
-            println!("Min:\t{min}");
-            println!("Max:\t{max}");
-            println!("Mean:\t{}", total / count);
+
+            let (min, max) = (hist.minimum().unwrap(), hist.maximum().unwrap());
+            let (mean, std) = (hist.mean().unwrap(), hist.stddev().unwrap());
+            let (median, q1, q3) = (
+                hist.percentile(50.).unwrap(),
+                hist.percentile(25.).unwrap(),
+                hist.percentile(75.).unwrap(),
+            );
+
+            if histogram {
+                draw_hist(&mut hist);
+                eprintln!("Min: {min}\tMax: {max}\tMean: {mean}\tSdev: {std}\tQ1: {q1}\tMedian: {median}\tQ3: {q3}",);
+            } else {
+                println!("Min:\t{min}");
+                println!("Max:\t{max}");
+                println!("Mean:\t{mean}");
+                println!("Sdev:\t{std}");
+                println!("Q1:\t{q1}");
+                println!("Median:\t{median}");
+                println!("Q3:\t{q3}");
+            }
         } else {
             while let Some(r) = reader.next() {
                 let record = r.expect("Invalid record");
@@ -141,16 +185,28 @@ pub mod commands {
         }
     }
 
-    pub fn generate(num: i32, len: u32, format: super::Format, line_ending: LineEnding) {
+    pub fn generate_random(
+        num: i32,
+        len: f64,
+        std: f64,
+        format: super::Format,
+        line_ending: LineEnding,
+    ) {
         let mut writer = std::io::stdout();
 
         let mut rng = rand::thread_rng();
+        let mut hist = Histogram::new();
+
+        let normal = Normal::new(len, std).unwrap();
 
         for i in 0..num {
             let id_str = format!("S{i}");
             let id = id_str.as_bytes();
 
-            let seq: String = (0..len)
+            let x: u64 = normal.sample(&mut rng) as u64;
+            hist.increment(x).unwrap();
+
+            let seq: String = (0..x)
                 .map(|_| {
                     let idx = rng.gen_range(0..CHARSET.len());
                     CHARSET[idx] as char
@@ -164,6 +220,63 @@ pub mod commands {
                 }
             }
             .unwrap();
+        }
+
+        if std > 0. {
+            let (min, max) = (hist.minimum().unwrap(), hist.maximum().unwrap());
+            let (mean, std) = (hist.mean().unwrap(), hist.stddev().unwrap());
+            let (median, q1, q3) = (
+                hist.percentile(50.).unwrap(),
+                hist.percentile(25.).unwrap(),
+                hist.percentile(75.).unwrap(),
+            );
+
+            draw_hist(&mut hist);
+            eprintln!("Min: {min}\tMax: {max}\tMean: {mean}\tSdev: {std}\tQ1: {q1}\tMedian: {median}\tQ3: {q3}",);
+        }
+    }
+
+    pub fn frequencies(input: Option<PathBuf>, per_sequence: bool) {
+        let mut reader = init_reader(input);
+
+        if per_sequence {
+            while let Some(r) = reader.next() {
+                let mut counter: HashMap<u8, u32> = HashMap::new();
+                let record = r.expect("Error parsing record");
+                for c in record.seq().iter() {
+                    counter
+                        .entry(*c)
+                        .and_modify(|count| *count += 1)
+                        .or_insert(0);
+                }
+                print!("{}", std::str::from_utf8(record.id()).unwrap());
+                let total: u32 = counter.values().sum();
+                let mut keys: Vec<&u8> = counter.keys().collect();
+                keys.sort();
+
+                for key in keys {
+                    let val = counter.get(key).unwrap();
+                    let p = (*val as f64 / total as f64) * 100.;
+                    print!("\t{}: {} {p:.2}%", *key as char, val);
+                }
+                println!();
+            }
+        } else {
+            let mut counter: HashMap<u8, u32> = HashMap::new();
+            while let Some(r) = reader.next() {
+                let record = r.expect("Error parsing record");
+                for c in record.seq().iter() {
+                    counter
+                        .entry(*c)
+                        .and_modify(|count| *count += 1)
+                        .or_insert(0);
+                }
+            }
+            let total: u32 = counter.values().sum();
+            for (key, val) in counter.iter() {
+                let p = (*val as f64 / total as f64) * 100.;
+                println!("{}\t{}\t{p:.2} %", *key as char, val);
+            }
         }
     }
 }
