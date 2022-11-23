@@ -6,10 +6,11 @@ mod commands;
 mod errors;
 
 #[derive(Parser, Debug)]
+#[clap(author, version, verbatim_doc_comment)]
 /// Seqtools is a simple utility to work with FASTX files from the command line.
 /// It seamlessly handles compressed files (.gz, .xz or bz2 formats).
 pub struct Cli {
-    /// Path to an input FASTX file. Reads from stdin by default
+    /// Path to an input FASTX file. [default: stdin]
     #[arg(short, long = "in", value_name = "FILE", global = true)]
     input: Option<PathBuf>,
 
@@ -50,7 +51,7 @@ enum Commands {
         /// Sequence type to generate
         #[arg(short='t', long, value_enum, default_value_t=Molecule::DNA)]
         sequence_type: Molecule,
-        /// Path to output file (default is stdout)
+        /// Path to output file [default: stdout]
         #[arg(short, long, value_name = "FILE")]
         out: Option<PathBuf>,
         /// Format of generated sequences
@@ -64,7 +65,21 @@ enum Commands {
         /// Format of output sequences
         #[arg(short, long, value_enum, default_value_t=Format::Fasta)]
         to: Format,
-        /// Path to output file (default is stdout)
+        /// Path to output file [default: stdout]
+        #[arg(short, long, value_name = "FILE")]
+        out: Option<PathBuf>,
+    },
+    /// Select sequences from file by identifier or index
+    Select {
+        /// List of sequence identifiers
+        ids: Option<Vec<String>>,
+        /// Specify indices instead of identifiers
+        #[arg(short, long)]
+        use_indices: bool,
+        /// Path to a file containing sequence identifiers
+        #[arg(short = 'f', long, value_name = "FILE")]
+        ids_file: Option<PathBuf>,
+        /// Path to output file [default: stdout]
         #[arg(short, long, value_name = "FILE")]
         out: Option<PathBuf>,
     },
@@ -114,6 +129,18 @@ fn main() -> Result<(), Box<dyn Error>> {
         }) => commands::generate_random(num, len, std, sequence_type, out, format, line_ending),
         Some(Commands::Ids) => commands::ids(cli.input),
         Some(Commands::Convert { to, out }) => commands::convert(cli.input, to, out, line_ending),
+        Some(Commands::Select {
+            ids,
+            use_indices,
+            ids_file,
+            out,
+        }) => {
+            if use_indices {
+                commands::select_by_index(cli.input, ids, ids_file, out, line_ending)
+            } else {
+                commands::select_by_ids(cli.input, ids, ids_file, out, line_ending)
+            }
+        }
         None => unreachable!(),
     }?;
 

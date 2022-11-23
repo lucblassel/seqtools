@@ -1,9 +1,10 @@
-use crate::errors;
+use crate::{errors, Format, Molecule};
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::error::Error;
-use std::io::Write;
-use std::path::{PathBuf, Path};
+use std::fs::File;
+use std::io::{BufRead, BufReader, Write};
+use std::path::{Path, PathBuf};
 
 use histogram::Histogram;
 use needletail::parser::{self, LineEnding};
@@ -15,8 +16,6 @@ use textplots::{Chart, Plot, Shape};
 const DNA: &[u8] = b"ACGT";
 const RNA: &[u8] = b"ACGU";
 const PROTEIN: &[u8] = b"ACDEFGHIKLMNPQRSTVWY";
-
-use crate::Format;
 
 struct SumStats {
     min: u64,
@@ -105,11 +104,9 @@ pub fn count(input: Option<PathBuf>) -> Result<(), Box<dyn Error>> {
             Ok(_) => count += 1,
             Err(e) => return Err(e.into()),
         }
-        let _ = r.expect("Invalid record");
-        count += 1;
     }
 
-    println!("{count} sequences");
+    println!("{count}");
 
     Ok(())
 }
@@ -153,20 +150,20 @@ pub fn generate_random(
     num: i32,
     len: f64,
     std: f64,
-    sequence_type: crate::Molecule,
+    sequence_type: Molecule,
     out: Option<PathBuf>,
-    format: crate::Format,
+    format: Format,
     line_ending: LineEnding,
 ) -> Result<(), Box<dyn Error>> {
-    let mut writer =match out {
-        Some(ref path) => Box::new(std::fs::File::create(&Path::new(path))?) as Box<dyn Write>,
+    let mut writer = match out {
+        Some(ref path) => Box::new(std::fs::File::create(Path::new(path))?) as Box<dyn Write>,
         None => Box::new(std::io::stdout()) as Box<dyn Write>,
     };
 
     let charset = match sequence_type {
-        crate::Molecule::DNA => DNA,
-        crate::Molecule::RNA => RNA,
-        crate::Molecule::Protein => PROTEIN,
+        Molecule::DNA => DNA,
+        Molecule::RNA => RNA,
+        Molecule::Protein => PROTEIN,
     };
 
     let mut rng = rand::thread_rng();
@@ -195,12 +192,6 @@ pub fn generate_random(
             }
         }?;
     }
-
-    // if std > 0. {
-    //     let stats = SumStats::from_hist(&hist)?;
-    //     draw_hist(&mut hist)?;
-    //     stats.print_row();
-    // }
 
     Ok(())
 }
@@ -275,8 +266,8 @@ pub fn convert(
     line_ending: LineEnding,
 ) -> Result<(), Box<dyn Error>> {
     let mut reader = init_reader(input)?;
-    let mut writer =match out {
-        Some(ref path) => Box::new(std::fs::File::create(&Path::new(path))?) as Box<dyn Write>,
+    let mut writer = match out {
+        Some(ref path) => Box::new(std::fs::File::create(Path::new(path))?) as Box<dyn Write>,
         None => Box::new(std::io::stdout()) as Box<dyn Write>,
     };
 
@@ -296,6 +287,115 @@ pub fn convert(
             }
         }
     };
+
+    Ok(())
+}
+
+pub fn select_by_ids(
+    input: Option<PathBuf>,
+    ids: Option<Vec<String>>,
+    ids_file: Option<PathBuf>,
+    out: Option<PathBuf>,
+    line_ending: LineEnding,
+) -> Result<(), Box<dyn Error>> {
+    let mut to_select: HashSet<String> = HashSet::new();
+    match (ids, ids_file) {
+        (None, None) => return Err(errors::MainError::new("").into()),
+        (Some(ids), None) => {
+            for id in ids {
+                to_select.insert(id);
+            }
+        }
+        (None, Some(file)) => {
+            let file = File::open(file)?;
+            let buf_reader = BufReader::new(file);
+            for id in buf_reader.lines() {
+                let id = id?;
+                to_select.insert(id);
+            }
+        }
+        (Some(ids), Some(file)) => {
+            for id in ids {
+                to_select.insert(id);
+            }
+            let file = File::open(file)?;
+            let buf_reader = BufReader::new(file);
+            for id in buf_reader.lines() {
+                let id = id?;
+                to_select.insert(id);
+            }
+        }
+    };
+
+    let mut reader = init_reader(input)?;
+    let mut writer = match out {
+        Some(ref path) => Box::new(std::fs::File::create(Path::new(path))?) as Box<dyn Write>,
+        None => Box::new(std::io::stdout()) as Box<dyn Write>,
+    };
+
+    while let Some(r) = reader.next() {
+        let record = r?;
+        let (id, seq): (&[u8], &[u8]) = (record.id(), &record.seq());
+        let id_s = String::from(std::str::from_utf8(id)?);
+        if to_select.contains(&id_s) {
+            parser::write_fasta(id, seq, &mut writer, line_ending)?;
+        }
+    }
+
+    Ok(())
+}
+
+pub fn select_by_index(
+    input: Option<PathBuf>,
+    indices: Option<Vec<String>>,
+    indices_file: Option<PathBuf>,
+    out: Option<PathBuf>,
+    line_ending: LineEnding,
+) -> Result<(), Box<dyn Error>> {
+    let mut to_select: HashSet<usize> = HashSet::new();
+    match (indices, indices_file) {
+        (None, None) => return Err(errors::MainError::new("").into()),
+        (Some(indices), None) => {
+            for index in indices {
+                to_select.insert(index.parse::<usize>()?);
+            }
+        }
+        (None, Some(file)) => {
+            let file = File::open(file)?;
+            let buf_reader = BufReader::new(file);
+            for index in buf_reader.lines() {
+                let index = index?;
+                to_select.insert(index.parse::<usize>()?);
+            }
+        }
+        (Some(indices), Some(file)) => {
+            for index in indices {
+                to_select.insert(index.parse::<usize>()?);
+            }
+            let file = File::open(file)?;
+            let buf_reader = BufReader::new(file);
+            for index in buf_reader.lines() {
+                let index = index?;
+                to_select.insert(index.parse::<usize>()?);
+            }
+        }
+    };
+
+    let mut reader = init_reader(input)?;
+    let mut writer = match out {
+        Some(ref path) => Box::new(std::fs::File::create(Path::new(path))?) as Box<dyn Write>,
+        None => Box::new(std::io::stdout()) as Box<dyn Write>,
+    };
+
+    let mut cursor: usize = 0;
+    while let Some(r) = reader.next() {
+        let record = r?;
+        let (id, seq): (&[u8], &[u8]) = (record.id(), &record.seq());
+        if to_select.contains(&cursor) {
+            parser::write_fasta(id, seq, &mut writer, line_ending)?;
+        }
+        cursor += 1;
+    }
 
     Ok(())
 }
