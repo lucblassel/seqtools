@@ -26,7 +26,16 @@ Options:
   -h, --help       Print help information
 ```
 
-### `count`
+Jump to command:
+ - [count](#count)
+ - [length](#length)
+ - [freqs](#freqs)
+ - [random](#random)
+ - [ids](#ids)
+ - [convert](#convert)
+ - [select](#select)
+
+### count
 ```
 Counts the number of sequences in FASTX data
 
@@ -37,7 +46,7 @@ Options:
   -h, --help       Print help information
 ```
 
-### `length`
+### length
 ```
 Get length in nucleotides of sequences
 Usage: seqtools length [OPTIONS]
@@ -49,7 +58,7 @@ Options:
   -h, --help       Print help information
 ```
 
-### `freqs`
+### freqs
 ```
 Get statistics about frequencies in the file
 
@@ -61,7 +70,7 @@ Options:
   -h, --help          Print help information
 ```
 
-### `random`
+### random
 ```
 Generate random sequences with normally distributed lengths
 
@@ -86,7 +95,7 @@ Options:
           Print help information
 ```
 
-### `ids`
+### ids
 ```
 Extract sequence ids
 
@@ -97,7 +106,7 @@ Options:
   -h, --help       Print help information
 ```
 
-### `convert`
+### convert
 ```
 Convert file to format
 
@@ -110,8 +119,25 @@ Options:
   -h, --help        Print help information
 ```
 
-### `select`
+### select
 Select sequences from file by identifier or index
+
+#### General usage
+```
+Select sequences from file by identifier or index
+
+Usage: seqtools select [OPTIONS] [IDS]...
+
+Arguments:
+  [IDS]...  List of sequence identifiers
+
+Options:
+  -i, --in <FILE>        Path to an input FASTX file. [default: stdin]
+  -u, --use-indices      Specify indices instead of identifiers (0-start index)
+  -f, --ids-file <FILE>  Path to a file containing sequence identifiers (1 per line)
+  -o, --out <FILE>       Path to output file [default: stdout]
+  -h, --help             Print help information (use `--help` for more detail)
+```
 
 #### Examples
 We have the following fasta file:
@@ -166,29 +192,4 @@ AAAAAAAAA
 CCCCCCCCC
 >Seq5
 ATATATATA
-```
-
-General usage: 
-```
-Usage: seqtools select [OPTIONS] [IDS]...
-
-Arguments:
-  [IDS]...
-          List of sequence identifiers
-
-Options:
-  -i, --in <FILE>
-          Path to an input FASTX file. [default: stdin]
-
-  -u, --use-indices
-          Specify indices instead of identifiers (0-start index)
-
-  -f, --ids-file <FILE>
-          Path to a file containing sequence identifiers (1 per line)
-
-  -o, --out <FILE>
-          Path to output file [default: stdout]
-
-  -h, --help
-          Print help information (use `-h` for a summary)
 ```
