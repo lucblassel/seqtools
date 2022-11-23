@@ -4,7 +4,6 @@ use std::path::PathBuf;
 
 mod commands;
 mod errors;
-
 #[derive(Parser, Debug)]
 #[clap(author, version, verbatim_doc_comment)]
 /// Seqtools is a simple utility to work with FASTX files from the command line.
@@ -19,7 +18,7 @@ pub struct Cli {
 }
 
 #[derive(Subcommand, Debug)]
-enum Commands {
+pub enum Commands {
     /// Counts the number of sequences in FASTX data
     Count,
     /// Get length in nucleotides of sequences
@@ -69,14 +68,70 @@ enum Commands {
         #[arg(short, long, value_name = "FILE")]
         out: Option<PathBuf>,
     },
+    #[clap(verbatim_doc_comment)]
     /// Select sequences from file by identifier or index
+    /// 
+    /// ## Examples
+    /// We have the following fasta file:
+    /// ```
+    /// >Seq1
+    /// AAAAAAAAA
+    /// >Seq2
+    /// CCCCCCCCC
+    /// >Seq3
+    /// GGGGGGGGG
+    /// >Seq4
+    /// TTTTTTTTT
+    /// >Seq5
+    /// ATATATATA
+    /// ```
+    ///  
+    /// `$ cat <fasta> | seqtools select Seq1 Seq5`
+    /// ```
+    /// >Seq1
+    /// AAAAAAAAA
+    /// >Seq5
+    /// ATATATATA
+    /// ```
+    /// `$ cat <fasta> | seqtools select --use-indices 1 2`
+    /// ```
+    /// >Seq2
+    /// CCCCCCCCC
+    /// >Seq3
+    /// GGGGGGGGG
+    /// ```
+    /// 
+    /// If you write ids (or indices) in a file, one per line as follows:  
+    /// ```
+    /// Seq1
+    /// Seq5
+    /// ```
+    ///
+    /// Then you can select from that file  
+    /// `$ cat <fasta> | seqtools select -f <ids.txt>`
+    /// ```
+    /// >Seq1
+    /// AAAAAAAAA
+    /// >Seq5
+    /// ATATATATA
+    /// ```
+    /// You can also specify additional ids as positional arguments  
+    /// `$ cat <fasta> | seqtools select -f <ids.txt> Seq2`
+    /// ```
+    /// >Seq1
+    /// AAAAAAAAA
+    /// >Seq2
+    /// CCCCCCCCC
+    /// >Seq5
+    /// ATATATATA
+    /// ```
     Select {
         /// List of sequence identifiers
         ids: Option<Vec<String>>,
-        /// Specify indices instead of identifiers
+        /// Specify indices instead of identifiers (0-start index)
         #[arg(short, long)]
         use_indices: bool,
-        /// Path to a file containing sequence identifiers
+        /// Path to a file containing sequence identifiers (1 per line)
         #[arg(short = 'f', long, value_name = "FILE")]
         ids_file: Option<PathBuf>,
         /// Path to output file [default: stdout]

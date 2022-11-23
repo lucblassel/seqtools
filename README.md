@@ -18,6 +18,7 @@ Commands:
   random   Generate random sequences with normally distributed lengths
   ids      Extract sequence ids
   convert  Convert file to format
+  select   Select sequences from file by identifier or index
   help     Print this message or the help of the given subcommand(s)
 
 Options:
@@ -39,7 +40,6 @@ Options:
 ### `length`
 ```
 Get length in nucleotides of sequences
-
 Usage: seqtools length [OPTIONS]
 
 Options:
@@ -111,18 +111,84 @@ Options:
 ```
 
 ### `select`
-```
 Select sequences from file by identifier or index
 
+#### Examples
+We have the following fasta file:
+```
+>Seq1
+AAAAAAAAA
+>Seq2
+CCCCCCCCC
+>Seq3
+GGGGGGGGG
+>Seq4
+TTTTTTTTT
+>Seq5
+ATATATATA
+```
+ 
+`$ cat <fasta> | seqtools select Seq1 Seq5`
+```
+>Seq1
+AAAAAAAAA
+>Seq5
+ATATATATA
+```
+`$ cat <fasta> | seqtools select --use-indices 1 2`
+```
+>Seq2
+CCCCCCCCC
+>Seq3
+GGGGGGGGG
+```
+
+If you write ids (or indices) in a file, one per line as follows:  
+```
+Seq1
+Seq5
+```
+
+Then you can select from that file  
+`$ cat <fasta> | seqtools select -f <ids.txt>`
+```
+>Seq1
+AAAAAAAAA
+>Seq5
+ATATATATA
+```
+You can also specify additional ids as positional arguments  
+`$ cat <fasta> | seqtools select -f <ids.txt> Seq2`
+```
+>Seq1
+AAAAAAAAA
+>Seq2
+CCCCCCCCC
+>Seq5
+ATATATATA
+```
+
+General usage: 
+```
 Usage: seqtools select [OPTIONS] [IDS]...
 
 Arguments:
-  [IDS]...  List of sequence identifiers
+  [IDS]...
+          List of sequence identifiers
 
 Options:
-  -i, --in <FILE>        Path to an input FASTX file. [default: stdin]
-  -u, --use-indices      Specify indices instead of identifiers
-  -f, --ids-file <FILE>  Path to a file containing sequence identifiers
-  -o, --out <FILE>       Path to output file [default: stdout]
-  -h, --help             Print help information
+  -i, --in <FILE>
+          Path to an input FASTX file. [default: stdin]
+
+  -u, --use-indices
+          Specify indices instead of identifiers (0-start index)
+
+  -f, --ids-file <FILE>
+          Path to a file containing sequence identifiers (1 per line)
+
+  -o, --out <FILE>
+          Path to output file [default: stdout]
+
+  -h, --help
+          Print help information (use `-h` for a summary)
 ```
