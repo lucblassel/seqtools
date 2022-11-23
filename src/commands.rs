@@ -2,7 +2,8 @@ use crate::errors;
 
 use std::collections::HashMap;
 use std::error::Error;
-use std::path::PathBuf;
+use std::io::Write;
+use std::path::{PathBuf, Path};
 
 use histogram::Histogram;
 use needletail::parser::{self, LineEnding};
@@ -11,7 +12,9 @@ use rand::Rng;
 use rand_distr::{Distribution, Normal};
 use textplots::{Chart, Plot, Shape};
 
-const CHARSET: &[u8] = b"ACGT";
+const DNA: &[u8] = b"ACGT";
+const RNA: &[u8] = b"ACGU";
+const PROTEIN: &[u8] = b"ACDEFGHIKLMNPQRSTVWY";
 
 use crate::Format;
 
@@ -29,10 +32,7 @@ impl SumStats {
     fn from_hist(hist: &Histogram) -> Result<Self, Box<dyn Error>> {
         let (min, max) = (hist.minimum()?, hist.maximum()?);
         let mean = hist.mean()?;
-        let std = match hist.stddev() {
-            Some(s) => s,
-            None => 0,
-        };
+        let std = hist.stddev().unwrap_or(0);
         let (median, q1, q3) = (
             hist.percentile(50.)?,
             hist.percentile(25.)?,
@@ -153,10 +153,21 @@ pub fn generate_random(
     num: i32,
     len: f64,
     std: f64,
-    format: super::Format,
+    sequence_type: crate::Molecule,
+    out: Option<PathBuf>,
+    format: crate::Format,
     line_ending: LineEnding,
 ) -> Result<(), Box<dyn Error>> {
-    let mut writer = std::io::stdout();
+    let mut writer =match out {
+        Some(ref path) => Box::new(std::fs::File::create(&Path::new(path))?) as Box<dyn Write>,
+        None => Box::new(std::io::stdout()) as Box<dyn Write>,
+    };
+
+    let charset = match sequence_type {
+        crate::Molecule::DNA => DNA,
+        crate::Molecule::RNA => RNA,
+        crate::Molecule::Protein => PROTEIN,
+    };
 
     let mut rng = rand::thread_rng();
     let mut hist = Histogram::new();
@@ -172,22 +183,24 @@ pub fn generate_random(
 
         let seq: String = (0..x)
             .map(|_| {
-                let idx = rng.gen_range(0..CHARSET.len());
-                CHARSET[idx] as char
+                let idx = rng.gen_range(0..charset.len());
+                charset[idx] as char
             })
             .collect();
 
         match format {
-            Format::A => parser::write_fasta(id, seq.as_bytes(), &mut writer, line_ending),
-            Format::Q => parser::write_fastq(id, seq.as_bytes(), None, &mut writer, line_ending),
+            Format::Fasta => parser::write_fasta(id, seq.as_bytes(), &mut writer, line_ending),
+            Format::Fastq => {
+                parser::write_fastq(id, seq.as_bytes(), None, &mut writer, line_ending)
+            }
         }?;
     }
 
-    if std > 0. {
-        let stats = SumStats::from_hist(&hist)?;
-        draw_hist(&mut hist)?;
-        stats.print_row();
-    }
+    // if std > 0. {
+    //     let stats = SumStats::from_hist(&hist)?;
+    //     draw_hist(&mut hist)?;
+    //     stats.print_row();
+    // }
 
     Ok(())
 }
@@ -234,6 +247,55 @@ pub fn frequencies(input: Option<PathBuf>, per_sequence: bool) -> Result<(), Box
             println!("{}\t{}\t{p:.2} %", *key as char, val);
         }
     }
+
+    Ok(())
+}
+
+pub fn ids(input: Option<PathBuf>) -> Result<(), Box<dyn Error>> {
+    let mut reader = init_reader(input)?;
+
+    while let Some(r) = reader.next() {
+        let record = r?;
+        match std::str::from_utf8(record.id()) {
+            Ok(id) => println!("{id}"),
+            Err(e) => {
+                let msg = format!("Error reading id: {e}");
+                return Err(errors::SeqError::new(&msg, record.id()).into());
+            }
+        };
+    }
+
+    Ok(())
+}
+
+pub fn convert(
+    input: Option<PathBuf>,
+    to: Format,
+    out: Option<PathBuf>,
+    line_ending: LineEnding,
+) -> Result<(), Box<dyn Error>> {
+    let mut reader = init_reader(input)?;
+    let mut writer =match out {
+        Some(ref path) => Box::new(std::fs::File::create(&Path::new(path))?) as Box<dyn Write>,
+        None => Box::new(std::io::stdout()) as Box<dyn Write>,
+    };
+
+    match to {
+        Format::Fasta => {
+            while let Some(r) = reader.next() {
+                let record = r?;
+                let (id, seq): (&[u8], &[u8]) = (record.id(), &record.seq());
+                parser::write_fasta(id, seq, &mut writer, line_ending)?;
+            }
+        }
+        Format::Fastq => {
+            while let Some(r) = reader.next() {
+                let record = r?;
+                let (id, seq): (&[u8], &[u8]) = (record.id(), &record.seq());
+                parser::write_fastq(id, seq, None, &mut writer, line_ending)?;
+            }
+        }
+    };
 
     Ok(())
 }

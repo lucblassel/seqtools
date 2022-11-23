@@ -7,8 +7,8 @@ mod errors;
 
 #[derive(Parser, Debug)]
 /// Seqtools is a simple utility to work with FASTX files from the command line.
-/// Seamlessly handles compressed files (.gz, .xz or bz2 formats).
-struct Cli {
+/// It seamlessly handles compressed files (.gz, .xz or bz2 formats).
+pub struct Cli {
     /// Path to an input FASTX file. Reads from stdin by default
     #[arg(short, long = "in", value_name = "FILE", global = true)]
     input: Option<PathBuf>,
@@ -47,18 +47,40 @@ enum Commands {
         /// Standard deviation of read length
         #[arg(short, long, default_value_t = 0.)]
         std: f64,
-        /// Format of generated sequences (FAST(a) or FAST(q))
-        #[arg(short, long, value_enum, default_value_t=Format::A)]
+        /// Sequence type to generate
+        #[arg(short='t', long, value_enum, default_value_t=Molecule::DNA)]
+        sequence_type: Molecule,
+        /// Path to output file (default is stdout)
+        #[arg(short, long, value_name = "FILE")]
+        out: Option<PathBuf>,
+        /// Format of generated sequences
+        #[arg(short, long, value_enum, default_value_t=Format::Fasta)]
         format: Format,
+    },
+    /// Extract sequence ids
+    Ids,
+    /// Convert file to format
+    Convert {
+        /// Format of output sequences
+        #[arg(short, long, value_enum, default_value_t=Format::Fasta)]
+        to: Format,
+        /// Path to output file (default is stdout)
+        #[arg(short, long, value_name = "FILE")]
+        out: Option<PathBuf>,
     },
 }
 
 #[derive(Copy, Clone, ValueEnum, Debug)]
 pub enum Format {
-    /// Fasta
-    A,
-    /// Fastq
-    Q,
+    Fasta,
+    Fastq,
+}
+
+#[derive(Copy, Clone, ValueEnum, Debug)]
+pub enum Molecule {
+    DNA,
+    RNA,
+    Protein,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -86,8 +108,12 @@ fn main() -> Result<(), Box<dyn Error>> {
             num,
             len,
             std,
+            sequence_type,
+            out,
             format,
-        }) => commands::generate_random(num, len, std, format, line_ending),
+        }) => commands::generate_random(num, len, std, sequence_type, out, format, line_ending),
+        Some(Commands::Ids) => commands::ids(cli.input),
+        Some(Commands::Convert { to, out }) => commands::convert(cli.input, to, out, line_ending),
         None => unreachable!(),
     }?;
 
