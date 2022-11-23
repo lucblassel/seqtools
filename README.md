@@ -109,3 +109,20 @@ Options:
   -o, --out <FILE>  Path to output file (default is stdout)
   -h, --help        Print help information
 ```
+
+### `select`
+```
+Select sequences from file by identifier or index
+
+Usage: seqtools select [OPTIONS] [IDS]...
+
+Arguments:
+  [IDS]...  List of sequence identifiers
+
+Options:
+  -i, --in <FILE>        Path to an input FASTX file. [default: stdin]
+  -u, --use-indices      Specify indices instead of identifiers
+  -f, --ids-file <FILE>  Path to a file containing sequence identifiers
+  -o, --out <FILE>       Path to output file [default: stdout]
+  -h, --help             Print help information
+```
