@@ -20,6 +20,7 @@ Commands:
   convert  Convert file to format
   select   Select sequences from file by identifier or index
   rename   Rename sequences in a fasta file
+  add-id   Add a common string to as a prefix or suffix to each sequence header
   help     Print this message or the help of the given subcommand(s)
 
 Options:
@@ -37,6 +38,7 @@ Jump to command:
  - [convert](#convert)
  - [select](#select)
  - [rename](#rename)
+ - [add-id](#add-id)
 
 ### count
 ```
@@ -223,6 +225,34 @@ Options:
 
   -f, --map-file <FILE>
           Tab delimited file for renaming sequences ('<original_id>\t<new_id>')
+
+  -o, --out <FILE>
+          Path to output file [default: stdout]
+
+  -h, --help
+          Print help information (use `-h` for a summary)
+```
+
+### add-id
+```
+Add a common string to as a prefix or suffix to each sequence header
+
+A common use case would be to add a label to each sequence of different
+fasta files, with potentially duplicated sequence identifiers, in order
+to merge them and get unique sequence identifiers.
+
+Usage: seqtools add-id [OPTIONS] <TO_ADD>
+
+Arguments:
+  <TO_ADD>
+          identifier to add to each sequence header
+
+Options:
+  -i, --in <FILE>
+          Path to an input FASTX file. [default: stdin]
+
+  -p, --as-prefix
+          Adds the identifier as a prefix instead of suffix
 
   -o, --out <FILE>
           Path to output file [default: stdout]

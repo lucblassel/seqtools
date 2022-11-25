@@ -140,11 +140,11 @@ pub enum Commands {
     },
     #[clap(verbatim_doc_comment)]
     /// Rename sequences in a fasta file
-    /// 
+    ///
     /// You can rename in several mutually exclusive ways:  
-    /// 
+    ///
     ///    - Numbers: replace sequence header with its index
-    /// 
+    ///
     ///    - File: You can define new names by writing them in a tab-separated
     ///            file with the following format on each line:
     ///            <old_name>\t<new_name>
@@ -152,11 +152,27 @@ pub enum Commands {
     ///            be renamed.
     Rename {
         /// Rename the sequences with their index
-        #[arg(short, long, group="method")]
+        #[arg(short, long, group = "method")]
         number: bool,
         /// Tab delimited file for renaming sequences ('<original_id>\t<new_id>')
-        #[arg(short = 'f', long, value_name = "FILE", group="method")]
+        #[arg(short = 'f', long, value_name = "FILE", group = "method")]
         map_file: Option<PathBuf>,
+        /// Path to output file [default: stdout]
+        #[arg(short, long, value_name = "FILE")]
+        out: Option<PathBuf>,
+    },
+    #[clap(verbatim_doc_comment)]
+    /// Add a common string to as a prefix or suffix to each sequence header
+    ///
+    /// A common use case would be to add a label to each sequence of different
+    /// fasta files, with potentially duplicated sequence identifiers, in order
+    /// to merge them and get unique sequence identifiers.
+    AddId {
+        /// identifier to add to each sequence header
+        to_add: String,
+        /// Adds the identifier as a prefix instead of suffix
+        #[arg(short = 'p', long)]
+        as_prefix: bool,
         /// Path to output file [default: stdout]
         #[arg(short, long, value_name = "FILE")]
         out: Option<PathBuf>,
@@ -230,6 +246,11 @@ fn main() -> Result<(), Box<dyn Error>> {
                 commands::map_rename_sequences(cli.input, map_file, out, line_ending)
             }
         }
+        Some(Commands::AddId {
+            to_add,
+            as_prefix,
+            out,
+        }) => commands::add_id(cli.input, to_add, as_prefix, out, line_ending),
         None => unreachable!(),
     }?;
 

@@ -473,3 +473,30 @@ pub fn index_rename_sequences(
 
     Ok(())
 }
+
+pub fn add_id(
+    input: Option<PathBuf>,
+    to_add: String,
+    as_prefix: bool,
+    out: Option<PathBuf>,
+    line_ending: LineEnding,
+) -> Result<(), Box<dyn Error>> {
+    let mut reader = init_reader(input)?;
+    let mut writer = match out {
+        Some(ref path) => Box::new(std::fs::File::create(Path::new(path))?) as Box<dyn Write>,
+        None => Box::new(std::io::stdout()) as Box<dyn Write>,
+    };
+
+    while let Some(r) = reader.next() {
+        let record = r?;
+        let (id, seq): (&[u8], &[u8]) = (&record.id(), &record.seq());
+        let new_id = if as_prefix {
+            format!("{to_add}{}", std::str::from_utf8(id)?)
+        } else {
+            format!("{}{to_add}", std::str::from_utf8(id)?)
+        };
+        parser::write_fasta(new_id.as_bytes(), seq, &mut writer, line_ending)?;
+    }
+
+    Ok(())
+}
