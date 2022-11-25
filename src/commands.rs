@@ -399,3 +399,77 @@ pub fn select_by_index(
 
     Ok(())
 }
+
+pub fn map_rename_sequences(
+    input: Option<PathBuf>,
+    map_file: Option<PathBuf>,
+    out: Option<PathBuf>,
+    line_ending: LineEnding,
+) -> Result<(), Box<dyn Error>> {
+    let mut new_names: HashMap<String, String> = HashMap::new();
+    let file = match map_file {
+        Some(path) => File::open(path)?,
+        None => {
+            return Err(
+                errors::MainError::new("You must specify a name-mapping file or --number").into(),
+            )
+        }
+    };
+    let buf_reader = BufReader::new(file);
+    for index in buf_reader.lines() {
+        if let Ok(index) = index {
+            let split: Vec<String> = index.split('\t').map(|s| s.to_owned()).collect();
+            if split.len() != 2 {
+                return Err(errors::MainError::new(
+                    "You must specify '<old_name>\\t<new_name} in your map rename file",
+                )
+                .into());
+            }
+            new_names.insert(split[0].clone(), split[1].clone());
+        } else {
+            return Err(errors::MainError::new("Error parsing map file.").into());
+        }
+    }
+
+    let mut reader = init_reader(input)?;
+    let mut writer = match out {
+        Some(ref path) => Box::new(std::fs::File::create(Path::new(path))?) as Box<dyn Write>,
+        None => Box::new(std::io::stdout()) as Box<dyn Write>,
+    };
+
+    while let Some(r) = reader.next() {
+        let record = r?;
+        let (id, seq): (&[u8], &[u8]) = (record.id(), &record.seq());
+        let id_s = String::from(std::str::from_utf8(id)?);
+
+        match new_names.get(&id_s) {
+            Some(new) => parser::write_fasta(new.as_bytes(), seq, &mut writer, line_ending)?,
+            None => parser::write_fasta(id, seq, &mut writer, line_ending)?,
+        };
+    }
+
+    Ok(())
+}
+
+pub fn index_rename_sequences(
+    input: Option<PathBuf>,
+    out: Option<PathBuf>,
+    line_ending: LineEnding,
+) -> Result<(), Box<dyn Error>> {
+    let mut reader = init_reader(input)?;
+    let mut writer = match out {
+        Some(ref path) => Box::new(std::fs::File::create(Path::new(path))?) as Box<dyn Write>,
+        None => Box::new(std::io::stdout()) as Box<dyn Write>,
+    };
+
+    let mut cursor: usize = 0;
+    while let Some(r) = reader.next() {
+        let record = r?;
+        let new_id = format!("{cursor}");
+        let seq: &[u8] = &record.seq();
+        parser::write_fasta(new_id.as_bytes(), seq, &mut writer, line_ending)?;
+        cursor += 1;
+    }
+
+    Ok(())
+}

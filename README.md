@@ -7,7 +7,7 @@ This tool is designed to work with the UNIX philosphy and by default reads from 
 
 ```
 Seqtools is a simple utility to work with FASTX files from the command line.
-It seamlessly handles compressed files (.gz, .xz or bz2 formats)
+It seamlessly handles compressed files (.gz, .xz or bz2 formats).
 
 Usage: seqtools [OPTIONS] [COMMAND]
 
@@ -19,11 +19,13 @@ Commands:
   ids      Extract sequence ids
   convert  Convert file to format
   select   Select sequences from file by identifier or index
+  rename   Rename sequences in a fasta file
   help     Print this message or the help of the given subcommand(s)
 
 Options:
-  -i, --in <FILE>  Path to an input FASTX file. Reads from stdin by default
+  -i, --in <FILE>  Path to an input FASTX file. [default: stdin]
   -h, --help       Print help information
+  -V, --version    Print version information
 ```
 
 Jump to command:
@@ -34,6 +36,7 @@ Jump to command:
  - [ids](#ids)
  - [convert](#convert)
  - [select](#select)
+ - [rename](#rename)
 
 ### count
 ```
@@ -192,4 +195,38 @@ AAAAAAAAA
 CCCCCCCCC
 >Seq5
 ATATATATA
+```
+
+### rename
+
+```
+Rename sequences in a fasta file
+
+You can rename in several mutually exclusive ways:  
+
+   - Numbers: replace sequence header with its index
+
+   - File: You can define new names by writing them in a tab-separated
+           file with the following format on each line:
+           <old_name>\t<new_name>
+           Sequences whose name isn't specified in this file will not
+           be renamed.
+
+Usage: seqtools rename [OPTIONS]
+
+Options:
+  -i, --in <FILE>
+          Path to an input FASTX file. [default: stdin]
+
+  -n, --number
+          Rename the sequences with their index
+
+  -f, --map-file <FILE>
+          Tab delimited file for renaming sequences ('<original_id>\t<new_id>')
+
+  -o, --out <FILE>
+          Path to output file [default: stdout]
+
+  -h, --help
+          Print help information (use `-h` for a summary)
 ```

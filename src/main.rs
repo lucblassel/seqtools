@@ -70,7 +70,7 @@ pub enum Commands {
     },
     #[clap(verbatim_doc_comment)]
     /// Select sequences from file by identifier or index
-    /// 
+    ///
     /// ## Examples
     /// We have the following fasta file:
     /// ```
@@ -100,7 +100,7 @@ pub enum Commands {
     /// >Seq3
     /// GGGGGGGGG
     /// ```
-    /// 
+    ///
     /// If you write ids (or indices) in a file, one per line as follows:  
     /// ```
     /// Seq1
@@ -134,6 +134,29 @@ pub enum Commands {
         /// Path to a file containing sequence identifiers (1 per line)
         #[arg(short = 'f', long, value_name = "FILE")]
         ids_file: Option<PathBuf>,
+        /// Path to output file [default: stdout]
+        #[arg(short, long, value_name = "FILE")]
+        out: Option<PathBuf>,
+    },
+    #[clap(verbatim_doc_comment)]
+    /// Rename sequences in a fasta file
+    /// 
+    /// You can rename in several mutually exclusive ways:  
+    /// 
+    ///    - Numbers: replace sequence header with its index
+    /// 
+    ///    - File: You can define new names by writing them in a tab-separated
+    ///            file with the following format on each line:
+    ///            <old_name>\t<new_name>
+    ///            Sequences whose name isn't specified in this file will not
+    ///            be renamed.
+    Rename {
+        /// Rename the sequences with their index
+        #[arg(short, long, group="method")]
+        number: bool,
+        /// Tab delimited file for renaming sequences ('<original_id>\t<new_id>')
+        #[arg(short = 'f', long, value_name = "FILE", group="method")]
+        map_file: Option<PathBuf>,
         /// Path to output file [default: stdout]
         #[arg(short, long, value_name = "FILE")]
         out: Option<PathBuf>,
@@ -194,6 +217,17 @@ fn main() -> Result<(), Box<dyn Error>> {
                 commands::select_by_index(cli.input, ids, ids_file, out, line_ending)
             } else {
                 commands::select_by_ids(cli.input, ids, ids_file, out, line_ending)
+            }
+        }
+        Some(Commands::Rename {
+            number,
+            map_file,
+            out,
+        }) => {
+            if number {
+                commands::index_rename_sequences(cli.input, out, line_ending)
+            } else {
+                commands::map_rename_sequences(cli.input, map_file, out, line_ending)
             }
         }
         None => unreachable!(),
