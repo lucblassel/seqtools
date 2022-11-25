@@ -14,7 +14,7 @@ pub struct Cli {
     input: Option<PathBuf>,
 
     #[command(subcommand)]
-    command: Option<Commands>,
+    command: Commands,
 }
 
 #[derive(Subcommand, Debug)]
@@ -195,9 +195,6 @@ pub enum Molecule {
 fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
 
-    if cli.command.is_none() {
-        return Err(errors::MainError::new("You must specify a command.").into());
-    }
 
     let line_ending = match std::env::consts::OS {
         "linux" | "macos" | "freebsd" | "netbsd" | "openbsd" => {
@@ -208,50 +205,47 @@ fn main() -> Result<(), Box<dyn Error>> {
     };
 
     match cli.command {
-        Some(Commands::Count) => commands::count(cli.input),
-        Some(Commands::Length { summary, histogram }) => {
-            commands::length(cli.input, summary, histogram)
-        }
-        Some(Commands::Freqs { per_sequence }) => commands::frequencies(cli.input, per_sequence),
-        Some(Commands::Random {
+        Commands::Count => commands::count(cli.input),
+        Commands::Length { summary, histogram } => commands::length(cli.input, summary, histogram),
+        Commands::Freqs { per_sequence } => commands::frequencies(cli.input, per_sequence),
+        Commands::Random {
             num,
             len,
             std,
             sequence_type,
             out,
             format,
-        }) => commands::generate_random(num, len, std, sequence_type, out, format, line_ending),
-        Some(Commands::Ids) => commands::ids(cli.input),
-        Some(Commands::Convert { to, out }) => commands::convert(cli.input, to, out, line_ending),
-        Some(Commands::Select {
+        } => commands::generate_random(num, len, std, sequence_type, out, format, line_ending),
+        Commands::Ids => commands::ids(cli.input),
+        Commands::Convert { to, out } => commands::convert(cli.input, to, out, line_ending),
+        Commands::Select {
             ids,
             use_indices,
             ids_file,
             out,
-        }) => {
+        } => {
             if use_indices {
                 commands::select_by_index(cli.input, ids, ids_file, out, line_ending)
             } else {
                 commands::select_by_ids(cli.input, ids, ids_file, out, line_ending)
             }
         }
-        Some(Commands::Rename {
+        Commands::Rename {
             number,
             map_file,
             out,
-        }) => {
+        } => {
             if number {
                 commands::index_rename_sequences(cli.input, out, line_ending)
             } else {
                 commands::map_rename_sequences(cli.input, map_file, out, line_ending)
             }
         }
-        Some(Commands::AddId {
+        Commands::AddId {
             to_add,
             as_prefix,
             out,
-        }) => commands::add_id(cli.input, to_add, as_prefix, out, line_ending),
-        None => unreachable!(),
+        } => commands::add_id(cli.input, to_add, as_prefix, out, line_ending),
     }?;
 
     Ok(())

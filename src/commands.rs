@@ -233,7 +233,11 @@ pub fn frequencies(input: Option<PathBuf>, per_sequence: bool) -> Result<(), Box
             }
         }
         let total: u32 = counter.values().sum();
-        for (key, val) in counter.iter() {
+        let mut keys: Vec<&u8> = counter.keys().collect();
+        keys.sort();
+
+        for key in keys {
+            let val = counter.get(key).unwrap();
             let p = (*val as f64 / total as f64) * 100.;
             println!("{}\t{}\t{p:.2} %", *key as char, val);
         }
@@ -489,7 +493,7 @@ pub fn add_id(
 
     while let Some(r) = reader.next() {
         let record = r?;
-        let (id, seq): (&[u8], &[u8]) = (&record.id(), &record.seq());
+        let (id, seq): (&[u8], &[u8]) = (record.id(), &record.seq());
         let new_id = if as_prefix {
             format!("{to_add}{}", std::str::from_utf8(id)?)
         } else {
