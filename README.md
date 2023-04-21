@@ -9,7 +9,7 @@ This tool is designed to work with the UNIX philosphy and by default reads from 
 Seqtools is a simple utility to work with FASTX files from the command line.
 It seamlessly handles compressed files (.gz, .xz or bz2 formats).
 
-Usage: seqtools [OPTIONS] [COMMAND]
+Usage: seqtools [OPTIONS] <COMMAND>
 
 Commands:
   count    Counts the number of sequences in FASTX data
@@ -21,6 +21,8 @@ Commands:
   select   Select sequences from file by identifier or index
   rename   Rename sequences in a fasta file
   add-id   Add a common string to as a prefix or suffix to each sequence header
+  trim     Remove a certain number of characters from the beginning or end of each sequence
+  clip     Clip all sequences in the alignment to a maximum length
   help     Print this message or the help of the given subcommand(s)
 
 Options:
@@ -39,6 +41,8 @@ Jump to command:
  - [select](#select)
  - [rename](#rename)
  - [add-id](#add-id)
+ - [trim](#trim)
+ - [clip](#clip)
 
 ### count
 ```
@@ -259,4 +263,35 @@ Options:
 
   -h, --help
           Print help information (use `-h` for a summary)
+```
+
+### trim
+```
+Remove a certain number of characters from the beginning or end of each sequence
+
+Usage: seqtools trim [OPTIONS] <N_CHAR>
+
+Arguments:
+  <N_CHAR>  number of characters to trim from the sequence
+
+Options:
+  -i, --in <FILE>   Path to an input FASTX file. [default: stdin]
+  -s, --from-start  Remove from the beginning of the sequence instead of the end
+  -o, --out <FILE>  Path to output file [default: stdout]
+  -h, --help        Print help information
+```
+
+### clip
+```
+Clip all sequences in the alignment to a maximum length
+
+Usage: seqtools clip [OPTIONS] <MAX_LEN>
+
+Arguments:
+  <MAX_LEN>  number of characters to trim from the sequence
+
+Options:
+  -i, --in <FILE>   Path to an input FASTX file. [default: stdin]
+  -o, --out <FILE>  Path to output file [default: stdout]
+  -h, --help        Print help information
 ```
