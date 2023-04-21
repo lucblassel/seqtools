@@ -177,6 +177,25 @@ pub enum Commands {
         #[arg(short, long, value_name = "FILE")]
         out: Option<PathBuf>,
     },
+    /// Remove a certain number of characters from the beginning or end of each sequence
+    Trim {
+        /// number of characters to trim from the sequence
+        n_char: usize,
+        ///Remove from the beginning of the sequence instead of the end
+        #[arg(short = 's', long)]
+        from_start: bool,
+        /// Path to output file [default: stdout]
+        #[arg(short, long, value_name = "FILE")]
+        out: Option<PathBuf>,
+    },
+    /// Clip all sequences in the alignment to a maximum length
+    Clip {
+        /// number of characters to trim from the sequence
+        max_len: usize,
+        /// Path to output file [default: stdout]
+        #[arg(short, long, value_name = "FILE")]
+        out: Option<PathBuf>,
+    },
 }
 
 #[derive(Copy, Clone, ValueEnum, Debug)]
@@ -194,7 +213,6 @@ pub enum Molecule {
 
 fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
-
 
     let line_ending = match std::env::consts::OS {
         "linux" | "macos" | "freebsd" | "netbsd" | "openbsd" => {
@@ -246,6 +264,12 @@ fn main() -> Result<(), Box<dyn Error>> {
             as_prefix,
             out,
         } => commands::add_id(cli.input, to_add, as_prefix, out, line_ending),
+        Commands::Trim {
+            n_char,
+            from_start,
+            out,
+        } => commands::trim(cli.input, n_char, from_start, out, line_ending),
+        Commands::Clip { max_len, out } => commands::clip(cli.input, max_len, out, line_ending),
     }?;
 
     Ok(())

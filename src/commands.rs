@@ -504,3 +504,52 @@ pub fn add_id(
 
     Ok(())
 }
+
+pub fn trim(
+    input: Option<PathBuf>,
+    to_trim: usize,
+    from_start: bool,
+    out: Option<PathBuf>,
+    line_ending: LineEnding,
+) -> Result<(), Box<dyn Error>> {
+    let mut reader = init_reader(input)?;
+    let mut writer = match out {
+        Some(ref path) => Box::new(std::fs::File::create(Path::new(path))?) as Box<dyn Write>,
+        None => Box::new(std::io::stdout()) as Box<dyn Write>,
+    };
+
+    while let Some(r) = reader.next() {
+        let record = r?;
+        let (id, seq): (&[u8], &[u8]) = (record.id(), &record.seq());
+
+        if from_start {
+            parser::write_fasta(id, &seq[to_trim..seq.len()], &mut writer, line_ending)?;
+        } else {
+            parser::write_fasta(id, &seq[0..seq.len() - to_trim], &mut writer, line_ending)?;
+        }
+    }
+
+    Ok(())
+}
+
+pub fn clip(
+    input: Option<PathBuf>,
+    max_len: usize,
+    out: Option<PathBuf>,
+    line_ending: LineEnding,
+) -> Result<(), Box<dyn Error>> {
+    let mut reader = init_reader(input)?;
+    let mut writer = match out {
+        Some(ref path) => Box::new(std::fs::File::create(Path::new(path))?) as Box<dyn Write>,
+        None => Box::new(std::io::stdout()) as Box<dyn Write>,
+    };
+
+    while let Some(r) = reader.next() {
+        let record = r?;
+        let (id, seq): (&[u8], &[u8]) = (record.id(), &record.seq());
+        let len = seq.len().min(max_len);
+        parser::write_fasta(id, &seq[0..len], &mut writer, line_ending)?;
+    }
+
+    Ok(())
+}
