@@ -58,12 +58,14 @@ Options:
 ### length
 ```
 Get length in nucleotides of sequences
+
 Usage: seqtools length [OPTIONS]
 
 Options:
-  -i, --in <FILE>  Path to an input FASTX file. Reads from stdin by default
+  -i, --in <FILE>  Path to an input FASTX file. [default: stdin]
   -s, --summary    Report statistics about lengths instead of individual lengths
   -t, --histogram  Draw a histogram of lengths
+  -b, --tabular    Output in tabular format
   -h, --help       Print help information
 ```
 

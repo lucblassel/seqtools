@@ -29,6 +29,9 @@ pub enum Commands {
         /// Draw a histogram of lengths
         #[arg(short = 't', long)]
         histogram: bool,
+        /// Output in tabular format
+        #[arg(short='b', long)]
+        tabular: bool,
     },
     /// Get statistics about frequencies in the file
     Freqs {
@@ -224,7 +227,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     match cli.command {
         Commands::Count => commands::count(cli.input),
-        Commands::Length { summary, histogram } => commands::length(cli.input, summary, histogram),
+        Commands::Length { summary, histogram, tabular } => commands::length(cli.input, summary, histogram, tabular),
         Commands::Freqs { per_sequence } => commands::frequencies(cli.input, per_sequence),
         Commands::Random {
             num,

@@ -56,6 +56,14 @@ impl SumStats {
         );
     }
 
+    fn print_parsable(&self) {
+        println!("Min\tMax\tMean\tSdev\tQ1\tMedian\tQ3",);
+        println!(
+            "{}\t{}\t{}\t{}\t{}\t{}\t{}",
+            self.min, self.max, self.mean, self.std, self.q1, self.median, self.q3
+        );
+    }
+
     fn print_col(&self) {
         println!("Min:\t{}", self.min);
         println!("Max:\t{}", self.max);
@@ -111,10 +119,15 @@ pub fn count(input: Option<PathBuf>) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-pub fn length(input: Option<PathBuf>, stats: bool, histogram: bool) -> Result<(), Box<dyn Error>> {
+pub fn length(
+    input: Option<PathBuf>,
+    stats: bool,
+    histogram: bool,
+    tabular: bool,
+) -> Result<(), Box<dyn Error>> {
     let mut reader = init_reader(input)?;
 
-    if stats {
+    if stats || histogram {
         let mut hist = Histogram::new();
 
         while let Some(r) = reader.next() {
@@ -129,6 +142,8 @@ pub fn length(input: Option<PathBuf>, stats: bool, histogram: bool) -> Result<()
         if histogram {
             draw_hist(&mut hist)?;
             stats.print_row();
+        } else if tabular {
+            stats.print_parsable();
         } else {
             stats.print_col();
         }
