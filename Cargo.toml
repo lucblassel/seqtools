@@ -12,4 +12,5 @@ histogram = "0.6.9"
 needletail = { version = "0.4.1", features = ["compression"] }
 rand = "0.8.5"
 rand_distr = "0.4.3"
+serde_json = "1.0.96"
 textplots = "0.8.0"

@@ -11,6 +11,7 @@ use needletail::parser::{self, LineEnding};
 use needletail::FastxReader;
 use rand::Rng;
 use rand_distr::{Distribution, Normal};
+use serde_json::json;
 use textplots::{Chart, Plot, Shape};
 
 const DNA: &[u8] = b"ACGT";
@@ -564,6 +565,42 @@ pub fn clip(
         let (id, seq): (&[u8], &[u8]) = (record.id(), &record.seq());
         let len = seq.len().min(max_len);
         parser::write_fasta(id, &seq[0..len], &mut writer, line_ending)?;
+    }
+
+    Ok(())
+}
+
+pub fn check_duplicates(input: Option<PathBuf>, show_names: bool) -> Result<(), Box<dyn Error>> {
+    let mut reader = init_reader(input)?;
+
+    let mut duplicates = HashMap::new();
+
+    while let Some(r) = reader.next() {
+        let record = r?;
+        let seq = String::from_utf8(record.seq().to_vec())?;
+        let id = String::from_utf8(record.id().to_vec())?;
+
+        let entry = duplicates.entry(seq.clone()).or_insert(vec![]);
+        (*entry).push(id);
+    }
+
+    let mut count = 0;
+    let mut duplicated = vec![];
+    for v in duplicates.values() {
+        if v.len() > 1 {
+            count += v.len();
+            duplicated.push(v);
+        }
+    }
+
+    if show_names {
+        let json = json!({
+            "duplicates": duplicated,
+            "total": count,
+        });
+        println!("{}", json)
+    } else {
+        println!("{count}");
     }
 
     Ok(())

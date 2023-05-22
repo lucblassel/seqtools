@@ -23,6 +23,7 @@ Commands:
   add-id   Add a common string to as a prefix or suffix to each sequence header
   trim     Remove a certain number of characters from the beginning or end of each sequence
   clip     Clip all sequences in the alignment to a maximum length
+  duplicates  Check if alignment has duplicate sequences
   help     Print this message or the help of the given subcommand(s)
 
 Options:
@@ -295,5 +296,17 @@ Arguments:
 Options:
   -i, --in <FILE>   Path to an input FASTX file. [default: stdin]
   -o, --out <FILE>  Path to output file [default: stdout]
+  -h, --help        Print help information
+```
+
+### duplicates
+```
+Check if alignment has duplicate sequences
+
+Usage: seqtools duplicates [OPTIONS]
+
+Options:
+  -i, --in <FILE>   Path to an input FASTX file. [default: stdin]
+  -s, --show-names  Also show the identifiers of duplicated sequences instead of only the count as a JSON object
   -h, --help        Print help information
 ```

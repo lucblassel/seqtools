@@ -30,7 +30,7 @@ pub enum Commands {
         #[arg(short = 't', long)]
         histogram: bool,
         /// Output in tabular format
-        #[arg(short='b', long)]
+        #[arg(short = 'b', long)]
         tabular: bool,
     },
     /// Get statistics about frequencies in the file
@@ -199,6 +199,13 @@ pub enum Commands {
         #[arg(short, long, value_name = "FILE")]
         out: Option<PathBuf>,
     },
+    /// Check if alignment has duplicate sequences
+    Duplicates {
+        /// Also show the identifiers of duplicated sequences instead of only the count
+        /// as a JSON object.
+        #[arg(short, long)]
+        show_names: bool,
+    },
 }
 
 #[derive(Copy, Clone, ValueEnum, Debug)]
@@ -227,7 +234,11 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     match cli.command {
         Commands::Count => commands::count(cli.input),
-        Commands::Length { summary, histogram, tabular } => commands::length(cli.input, summary, histogram, tabular),
+        Commands::Length {
+            summary,
+            histogram,
+            tabular,
+        } => commands::length(cli.input, summary, histogram, tabular),
         Commands::Freqs { per_sequence } => commands::frequencies(cli.input, per_sequence),
         Commands::Random {
             num,
@@ -273,6 +284,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             out,
         } => commands::trim(cli.input, n_char, from_start, out, line_ending),
         Commands::Clip { max_len, out } => commands::clip(cli.input, max_len, out, line_ending),
+        Commands::Duplicates { show_names } => commands::check_duplicates(cli.input, show_names),
     }?;
 
     Ok(())
