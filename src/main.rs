@@ -206,6 +206,12 @@ pub enum Commands {
         #[arg(short, long)]
         show_names: bool,
     },
+    /// Remove duplicated sequences from the alignment
+    DeDuplicate {
+        /// Path to output file [default: stdout]
+        #[arg(short, long, value_name = "FILE")]
+        out: Option<PathBuf>,
+    },
 }
 
 #[derive(Copy, Clone, ValueEnum, Debug)]
@@ -285,6 +291,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         } => commands::trim(cli.input, n_char, from_start, out, line_ending),
         Commands::Clip { max_len, out } => commands::clip(cli.input, max_len, out, line_ending),
         Commands::Duplicates { show_names } => commands::check_duplicates(cli.input, show_names),
+        Commands::DeDuplicate { out } => commands::remove_duplicates(cli.input, out, line_ending),
     }?;
 
     Ok(())

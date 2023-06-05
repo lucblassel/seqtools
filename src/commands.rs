@@ -581,7 +581,7 @@ pub fn check_duplicates(input: Option<PathBuf>, show_names: bool) -> Result<(), 
         let id = String::from_utf8(record.id().to_vec())?;
 
         let entry = duplicates.entry(seq.clone()).or_insert(vec![]);
-        (*entry).push(id);
+        (*entry).push(id.trim().to_string());
     }
 
     let mut count = 0;
@@ -602,6 +602,38 @@ pub fn check_duplicates(input: Option<PathBuf>, show_names: bool) -> Result<(), 
     } else {
         println!("{count}");
     }
+
+    Ok(())
+}
+
+pub fn remove_duplicates(
+    input: Option<PathBuf>,
+    out: Option<PathBuf>,
+    line_ending: LineEnding,
+) -> Result<(), Box<dyn Error>> {
+    let mut reader = init_reader(input)?;
+    let mut writer = match out {
+        Some(ref path) => Box::new(std::fs::File::create(Path::new(path))?) as Box<dyn Write>,
+        None => Box::new(std::io::stdout()) as Box<dyn Write>,
+    };
+
+    let mut duplicates = HashSet::new();
+    let mut removed = vec![];
+
+    while let Some(r) = reader.next() {
+        let record = r?;
+        let seq = String::from_utf8(record.seq().to_vec())?;
+        let id = String::from_utf8(record.id().to_vec())?;
+
+        if let Some(_) = duplicates.get(&seq) {
+            removed.push(id.trim().to_string());
+        } else {
+            duplicates.insert(seq.clone());
+            parser::write_fasta(&id.as_bytes(), &seq.as_bytes(), &mut writer, line_ending)?;
+        }
+    }
+
+    println!("{}", removed.join(" "));
 
     Ok(())
 }
