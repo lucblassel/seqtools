@@ -1,6 +1,6 @@
 use crate::{errors, Format, Molecule};
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, BTreeMap};
 use std::error::Error;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
@@ -609,6 +609,7 @@ pub fn check_duplicates(input: Option<PathBuf>, show_names: bool) -> Result<(), 
 pub fn remove_duplicates(
     input: Option<PathBuf>,
     out: Option<PathBuf>,
+    verbose: u8,
     line_ending: LineEnding,
 ) -> Result<(), Box<dyn Error>> {
     let mut reader = init_reader(input)?;
@@ -617,7 +618,7 @@ pub fn remove_duplicates(
         None => Box::new(std::io::stdout()) as Box<dyn Write>,
     };
 
-    let mut duplicates = HashSet::new();
+    let mut duplicates = BTreeMap::new();
     let mut removed = vec![];
 
     while let Some(r) = reader.next() {
@@ -625,15 +626,36 @@ pub fn remove_duplicates(
         let seq = String::from_utf8(record.seq().to_vec())?;
         let id = String::from_utf8(record.id().to_vec())?;
 
-        if let Some(_) = duplicates.get(&seq) {
-            removed.push(id.trim().to_string());
-        } else {
-            duplicates.insert(seq.clone());
+        let entry = duplicates.entry(seq.clone()).or_insert(vec![]);
+        (*entry).push(id.trim().to_string());
+    }
+
+    let grouped_sequences: Vec<_> = duplicates
+        .into_iter()
+        .map(|(seq, mut ids)| {
+            ids.sort();
+            (seq, ids)
+        })
+        .collect();
+
+    for (seq, ids) in grouped_sequences {
+        for (i, id) in ids.iter().enumerate() {
+            if i == 0 {
             parser::write_fasta(&id.as_bytes(), &seq.as_bytes(), &mut writer, line_ending)?;
+
+            } else {
+                removed.push(id.clone())
+            }
         }
     }
 
-    println!("{}", removed.join(" "));
+    if verbose > 0 {
+        eprint!("{}", removed.len());
+        if verbose > 1{
+            eprint!(": {}", removed.join(" "));
+        }
+        eprintln!()
+    }
 
     Ok(())
 }
