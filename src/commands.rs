@@ -1,6 +1,6 @@
-use crate::{errors, Format, Molecule};
+use crate::{errors, viewer, Format, Molecule};
 
-use std::collections::{HashMap, HashSet, BTreeMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::error::Error;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
@@ -641,8 +641,7 @@ pub fn remove_duplicates(
     for (seq, ids) in grouped_sequences {
         for (i, id) in ids.iter().enumerate() {
             if i == 0 {
-            parser::write_fasta(&id.as_bytes(), &seq.as_bytes(), &mut writer, line_ending)?;
-
+                parser::write_fasta(id.as_bytes(), seq.as_bytes(), &mut writer, line_ending)?;
             } else {
                 removed.push(id.clone())
             }
@@ -651,11 +650,43 @@ pub fn remove_duplicates(
 
     if verbose > 0 {
         eprint!("{}", removed.len());
-        if verbose > 1{
+        if verbose > 1 {
             eprint!(": {}", removed.join(" "));
         }
         eprintln!()
     }
+
+    Ok(())
+}
+
+pub fn view_alignment(input: Option<PathBuf>) -> Result<(), Box<dyn Error>> {
+    let mut reader = match input.clone() {
+        Some(path) => needletail::parse_fastx_file(path),
+        None => return Err("Alignment file must be specified. Reading from stdin is not supported when using the view command.".into()),
+    }?;
+
+    let mut ids = vec![];
+    let mut seqs = vec![];
+    while let Some(r) = reader.next() {
+        let record = r.unwrap();
+        seqs.push(String::from_utf8(record.seq().to_vec()).unwrap());
+        ids.push(
+            String::from_utf8(record.id().to_vec())
+                .unwrap()
+                .trim()
+                .to_string(),
+        );
+    }
+
+    let title = match input {
+        Some(p) => p
+            .to_str()
+            .ok_or("Could not convert path to string")?
+            .to_string(),
+        None => "Reading from Stdin".to_string(),
+    };
+
+    viewer::render_view(ids, seqs, title).unwrap();
 
     Ok(())
 }

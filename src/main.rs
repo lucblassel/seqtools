@@ -215,6 +215,12 @@ pub enum Commands {
         #[arg(short, long, action=clap::ArgAction::Count)]
         verbose: u8,
     },
+    #[clap(verbatim_doc_comment)]
+    /// Get an interactive view of the alignment (like Seaview)
+    ///
+    /// This command does not support reading an alignment from standard input,
+    /// you must specify an alignment file using the --in flag.
+    View,
 }
 
 #[derive(Copy, Clone, ValueEnum, Debug)]
@@ -229,6 +235,8 @@ pub enum Molecule {
     RNA,
     Protein,
 }
+
+pub mod viewer;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
@@ -294,7 +302,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         } => commands::trim(cli.input, n_char, from_start, out, line_ending),
         Commands::Clip { max_len, out } => commands::clip(cli.input, max_len, out, line_ending),
         Commands::Duplicates { show_names } => commands::check_duplicates(cli.input, show_names),
-        Commands::DeDuplicate { out, verbose } => commands::remove_duplicates(cli.input, out, verbose, line_ending),
+        Commands::DeDuplicate { out, verbose } => {
+            commands::remove_duplicates(cli.input, out, verbose, line_ending)
+        }
+        Commands::View => commands::view_alignment(cli.input),
     }?;
 
     Ok(())
