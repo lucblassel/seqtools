@@ -30,6 +30,8 @@ struct App {
     frame_width: u16,
     alphabet: Alphabet,
     dark: bool,
+    help_hidden: bool,
+    highlight_background: bool,
 }
 
 const NUCLEOTIDES: [char; 11] = ['A', 'a', 'T', 't', 'C', 'c', 'G', 'g', 'U', 'u', '-'];
@@ -89,6 +91,8 @@ impl App {
             frame_width: 0,
             alphabet,
             dark: true,
+            help_hidden: false,
+            highlight_background: true,
         }
     }
 
@@ -134,7 +138,15 @@ impl App {
     }
 
     fn toggle_dark(&mut self) {
-        self.dark = !self.dark
+        self.dark = !self.dark;
+    }
+
+    fn toggle_help(&mut self) {
+        self.help_hidden = !self.help_hidden;
+    }
+
+    fn toggle_highlight(&mut self) {
+        self.highlight_background = !self.highlight_background;
     }
 }
 
@@ -187,8 +199,10 @@ fn run_app<B: Backend>(
         if crossterm::event::poll(timeout)? {
             if let Event::Key(key) = event::read()? {
                 match key.code {
-                    KeyCode::Char('q') | KeyCode::Char('Q') => return Ok(()),
+                    KeyCode::Char('Q') | KeyCode::Char('q') => return Ok(()),
                     KeyCode::Char('T') | KeyCode::Char('t') => app.toggle_dark(),
+                    KeyCode::Char('H') | KeyCode::Char('h') => app.toggle_help(),
+                    KeyCode::Char('R') | KeyCode::Char('r') => app.toggle_highlight(),
                     KeyCode::Up => app.scroll_up(),
                     KeyCode::Down => app.scroll_down(),
                     KeyCode::Right => app.scroll_right(),
@@ -228,13 +242,15 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
             ))
     };
 
+    let help_length = if app.help_hidden { 0 } else { 5 };
+
     let main_layout = Layout::default()
         .direction(Direction::Vertical)
         .margin(5)
         .constraints([
             Constraint::Length(3),
             Constraint::Min(20),
-            Constraint::Length(5),
+            Constraint::Length(help_length),
         ])
         .split(size);
 
@@ -261,7 +277,7 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
 
     let display_help = Paragraph::new(vec![
         Spans::from("  T  Toggle light/dark mode"),
-        Spans::from("  ?  Toggle Help"),            //TODO
+        Spans::from("  H  Toggle Help"),            //TODO
         Spans::from("  R  Toggle fore/background"), //TODO
     ])
     .style(Style::default())
@@ -278,6 +294,15 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
 
     let seq_ids: Vec<_> = app.ids.iter().map(|id| Spans::from(id.clone())).collect();
 
+    let style_char = |c, background| {
+        let color = app.alphabet.colorize(c);
+        if background {
+            Span::styled(c.to_string(), Style::default().bg(color))
+        } else {
+            Span::styled(c.to_string(), Style::default().fg(color))
+        }
+    };
+
     let seqs: Vec<_> = app
         .seqs
         .iter()
@@ -285,8 +310,9 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
             let colored: Vec<_> = seq
                 .chars()
                 .map(|c| {
-                    let color = app.alphabet.colorize(c);
-                    Span::styled(c.to_string(), Style::default().bg(color))
+                    // let color = app.alphabet.colorize(c);
+                    // Span::styled(c.to_string(), Style::default().bg(color))
+                    style_char(c, app.highlight_background)
                 })
                 .collect();
             Spans::from(colored)
