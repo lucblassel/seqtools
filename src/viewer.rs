@@ -14,7 +14,7 @@ use tui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Span, Spans},
-    widgets::{Block, Borders, Paragraph},
+    widgets::{Block, Borders, Clear, Paragraph},
     Frame, Terminal,
 };
 
@@ -30,7 +30,7 @@ struct App {
     frame_width: u16,
     alphabet: Alphabet,
     dark: bool,
-    help_hidden: bool,
+    show_help: bool,
     highlight_background: bool,
     ruler: String,
 }
@@ -106,7 +106,7 @@ impl App {
             frame_width: 0,
             alphabet,
             dark: true,
-            help_hidden: false,
+            show_help: false,
             highlight_background: true,
             ruler,
         }
@@ -160,7 +160,7 @@ impl App {
     }
 
     fn toggle_help(&mut self) {
-        self.help_hidden = !self.help_hidden;
+        self.show_help = !self.show_help;
     }
 
     fn toggle_highlight(&mut self) {
@@ -243,12 +243,11 @@ fn run_app<B: Backend>(
 fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     let size = f.size();
 
-    let block = Block::default().style(Style::default().fg(Color::Black));
-    f.render_widget(block, size);
-
     let bg = if app.dark { Color::Black } else { Color::White };
-
     let fg = if app.dark { Color::White } else { Color::Black };
+
+    let block = Block::default().style(Style::default());
+    f.render_widget(block, size);
 
     let create_block = |title| {
         Block::default()
@@ -260,47 +259,35 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
             ))
     };
 
-    let help_length = if app.help_hidden { 0 } else { 5 };
-
     let main_layout = Layout::default()
         .direction(Direction::Vertical)
         .margin(2)
-        .constraints([
-            Constraint::Length(3),
-            Constraint::Length(1),
-            Constraint::Min(20),
-            Constraint::Length(help_length),
-        ])
+        .constraints(
+            [
+                Constraint::Length(3),
+                Constraint::Length(1),
+                Constraint::Min(20),
+                Constraint::Length(1),
+            ]
+            .as_ref(),
+        )
         .split(size);
+
+    let mini_help = Paragraph::new(Span::from("Help: H/?  Quit: Q"))
+        .style(
+            Style::default()
+                .fg(fg)
+                .bg(bg)
+                .add_modifier(Modifier::ITALIC),
+        )
+        .alignment(Alignment::Right);
+    f.render_widget(mini_help, main_layout[3]);
 
     let title = Paragraph::new(Span::from(app.title.clone()))
         .style(Style::default().add_modifier(Modifier::BOLD))
         .alignment(Alignment::Center)
         .block(create_block("File"));
     f.render_widget(title, main_layout[0]);
-
-    let help_layout = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)])
-        .split(main_layout[3]);
-
-    let navigation_help = Paragraph::new(vec![
-        Spans::from("  ← → ↑ ↓    Scroll Left/Right/Up/Down"),
-        Spans::from("  PgUp PdDn  Scroll to Top/Bottom"),
-        Spans::from("  Home End   Scroll to Beginning/End"),
-    ])
-    .style(Style::default())
-    .block(create_block("Navigation:"));
-    f.render_widget(navigation_help, help_layout[0]);
-
-    let display_help = Paragraph::new(vec![
-        Spans::from("  T  Toggle light/dark mode"),
-        Spans::from("  H  Toggle Help"),            //TODO
-        Spans::from("  R  Toggle fore/background"), //TODO
-    ])
-    .style(Style::default())
-    .block(create_block("Rendering:"));
-    f.render_widget(display_help, help_layout[1]);
 
     let header_layout = Layout::default()
         .direction(Direction::Horizontal)
@@ -363,4 +350,54 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         .alignment(Alignment::Left)
         .scroll((app.yscroll, app.xscroll));
     f.render_widget(seq_par, alignment_layout[1]);
+
+    if app.show_help {
+        let area = centered_rect(60, 40, size);
+        f.render_widget(Clear, area);
+        let help_layout = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints(vec![Constraint::Percentage(100)])
+            .margin(0)
+            .split(area);
+
+        let display_help = Paragraph::new(vec![
+            Spans::from("Navigation:"),
+            Spans::from("  ← → ↑ ↓    Scroll Left/Right/Up/Down"),
+            Spans::from("  PgUp PdDn  Scroll to Top/Bottom"),
+            Spans::from("  Home End   Scroll to Beginning/End"),
+            Spans::from("Rendering:"),
+            Spans::from("  T    Toggle light/dark mode"),
+            Spans::from("  H ?  Toggle Help"),            //TODO
+            Spans::from("  R    Toggle fore/background"), //TODO
+        ])
+        .style(Style::default())
+        .block(create_block("Help:"));
+        f.render_widget(display_help, help_layout[0]);
+    }
+}
+
+fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(
+            [
+                Constraint::Percentage((100 - percent_y) / 2),
+                Constraint::Percentage(percent_y),
+                Constraint::Percentage((100 - percent_y) / 2),
+            ]
+            .as_ref(),
+        )
+        .split(r);
+
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints(
+            [
+                Constraint::Percentage((100 - percent_x) / 2),
+                Constraint::Percentage(percent_x),
+                Constraint::Percentage((100 - percent_x) / 2),
+            ]
+            .as_ref(),
+        )
+        .split(popup_layout[1])[1]
 }
