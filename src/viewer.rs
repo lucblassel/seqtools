@@ -32,6 +32,7 @@ struct App {
     dark: bool,
     help_hidden: bool,
     highlight_background: bool,
+    ruler: String,
 }
 
 const NUCLEOTIDES: [char; 11] = ['A', 'a', 'T', 't', 'C', 'c', 'G', 'g', 'U', 'u', '-'];
@@ -79,6 +80,20 @@ impl App {
             false => Alphabet::Nucleic,
         };
 
+        let mut ruler = " ".to_string();
+        let mut i = 1;
+        while i <= maxlen {
+            if i % 10 == 0 {
+                ruler += &format!("{i}");
+                let digits = (i as f32 + 1.).log10().ceil() as u16;
+                i += digits - 1;
+            } else {
+                ruler += " "
+            }
+
+            i += 1
+        }
+
         App {
             yscroll: 0,
             xscroll: 0,
@@ -93,6 +108,7 @@ impl App {
             dark: true,
             help_hidden: false,
             highlight_background: true,
+            ruler,
         }
     }
 
@@ -102,7 +118,8 @@ impl App {
     }
 
     fn scroll_right(&mut self) {
-        if self.xscroll < self.maxlen.saturating_sub(self.frame_width) {
+        // The -2 is to account for the borders of the block
+        if self.xscroll < self.maxlen.saturating_sub(self.frame_width - 2) {
             self.xscroll += 1;
         }
     }
@@ -134,7 +151,8 @@ impl App {
     }
 
     fn scroll_end(&mut self) {
-        self.xscroll = self.maxlen.saturating_sub(self.frame_width);
+        // The -2 is to account for the borders of the block
+        self.xscroll = self.maxlen.saturating_sub(self.frame_width - 2);
     }
 
     fn toggle_dark(&mut self) {
@@ -246,9 +264,10 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
 
     let main_layout = Layout::default()
         .direction(Direction::Vertical)
-        .margin(5)
+        .margin(2)
         .constraints([
             Constraint::Length(3),
+            Constraint::Length(1),
             Constraint::Min(20),
             Constraint::Length(help_length),
         ])
@@ -262,9 +281,8 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
 
     let help_layout = Layout::default()
         .direction(Direction::Horizontal)
-        .margin(0)
         .constraints([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)])
-        .split(main_layout[2]);
+        .split(main_layout[3]);
 
     let navigation_help = Paragraph::new(vec![
         Spans::from("  ← → ↑ ↓    Scroll Left/Right/Up/Down"),
@@ -284,11 +302,23 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     .block(create_block("Rendering:"));
     f.render_widget(display_help, help_layout[1]);
 
-    let alignment_layout = Layout::default()
+    let header_layout = Layout::default()
         .direction(Direction::Horizontal)
-        .vertical_margin(1)
         .constraints([Constraint::Length(10), Constraint::Min(20)].as_ref())
         .split(main_layout[1]);
+
+    let empty = Paragraph::new(Spans::from("")).style(Style::default().fg(fg).bg(bg));
+    f.render_widget(empty, header_layout[0]);
+    let rule = Paragraph::new(Spans::from(app.ruler.clone()))
+        .style(Style::default().fg(fg).bg(bg))
+        .scroll((0, app.xscroll))
+        .alignment(Alignment::Left);
+    f.render_widget(rule, header_layout[1]);
+
+    let alignment_layout = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Length(10), Constraint::Min(20)].as_ref())
+        .split(main_layout[2]);
 
     app.set_frame(&alignment_layout[1]);
 
